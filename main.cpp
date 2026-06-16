@@ -9,12 +9,25 @@
 const std::string GITHUB_OWNER = "komotok";
 const std::string GITHUB_REPO = "SMActivator";
 
+const double ver_current = 0.13;
+
+enum class UpdatePolicy { Enabled = 1, Disabled = 2, DisabledByPolicy = 3 };
+const UpdatePolicy updatePolicy = UpdatePolicy::Enabled;
+
+// ---------------------------------------------------------------------------
+// Structs
+// ---------------------------------------------------------------------------
+
 struct UpdateInfo {
     bool        available = false;
     std::string tagName;
     std::string releaseUrl;
     std::string downloadUrl;
 };
+
+// ---------------------------------------------------------------------------
+// JSON helpers
+// ---------------------------------------------------------------------------
 
 static std::string jsonField(const std::string& json, const std::string& key) {
     std::string needle = "\"" + key + "\"";
@@ -39,6 +52,10 @@ static std::string jsonUnescape(std::string s) {
     }
     return out;
 }
+
+// ---------------------------------------------------------------------------
+// Platform-specific
+// ---------------------------------------------------------------------------
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -107,13 +124,6 @@ UpdateInfo checkForUpdate(double currentVersion) {
     return info;
 }
 
-void restartProgram() {
-    wchar_t path[MAX_PATH];
-    GetModuleFileNameW(NULL, path, MAX_PATH);
-    ShellExecuteW(NULL, L"open", path, NULL, NULL, SW_SHOW);
-    exit(0);
-}
-
 void openURL(const std::string& url) {
     std::wstring wide(url.begin(), url.end());
     ShellExecuteW(NULL, L"open", wide.c_str(), NULL, NULL, SW_SHOW);
@@ -122,18 +132,25 @@ void openURL(const std::string& url) {
 #else
 void enableANSI() {}
 UpdateInfo checkForUpdate(double) { return {}; }
-void restartProgram() {}
 void openURL(const std::string&) {}
 #endif
 
+// ---------------------------------------------------------------------------
+// Colors
+// ---------------------------------------------------------------------------
+
 namespace Color {
-    const char* reset = "\033[0m";
-    const char* red = "\033[31m";
-    const char* green = "\033[32m";
-    const char* yellow = "\033[33m";
-    const char* cyan = "\033[36m";
-    const char* white = "\033[97m";
+    constexpr const char* reset = "\033[0m";
+    constexpr const char* red = "\033[31m";
+    constexpr const char* green = "\033[32m";
+    constexpr const char* yellow = "\033[33m";
+    constexpr const char* cyan = "\033[36m";
+    constexpr const char* white = "\033[97m";
 }
+
+// ---------------------------------------------------------------------------
+// UI helpers
+// ---------------------------------------------------------------------------
 
 class DotAnimation {
 public:
@@ -164,7 +181,7 @@ public:
 
 private:
     std::atomic<bool> running_;
-    std::thread thread_;
+    std::thread       thread_;
 };
 
 void progressBar(int total, const std::string& label = "", const char* labelColor = Color::yellow, int width = 40) {
@@ -175,7 +192,7 @@ void progressBar(int total, const std::string& label = "", const char* labelColo
 
     for (int i = 0; i <= total; ++i) {
         float percent = (float)i / total;
-        int filled = (int)(percent * width);
+        int   filled = (int)(percent * width);
         const char* barColor = percent < 0.4f ? Color::red
             : percent < 0.7f ? Color::yellow
             : Color::green;
@@ -201,8 +218,45 @@ void progressBar(int total, const std::string& label = "", const char* labelColo
     std::cout << "\n";
 }
 
-double ver_current = 0.13;
-int    updatechecker = 1;
+void printBanner() {
+    std::cout << "\n \n \n";
+    std::cout << Color::cyan << R"( $$$$$$\  $$\      $$\  $$$$$$\              $$\     $$\                      $$\                         )" << Color::reset << "\n";
+    std::cout << Color::cyan << R"($$  __$$\ $$$\    $$$ |$$  __$$\             $$ |    \__|                     $$ |                        )" << Color::reset << "\n";
+    std::cout << Color::cyan << R"($$ /  \__|$$$$\  $$$$ |$$ /  $$ | $$$$$$$\ $$$$$$\   $$\ $$\    $$\ $$$$$$\ $$$$$$\    $$$$$$\   $$$$$$\ )" << Color::reset << "\n";
+    std::cout << Color::cyan << R"(\$$$$$$\  $$\$$\$$ $$ |$$$$$$$$ |$$  _____|\_$$  _|  $$ |\$$\  $$  |\____$$\\_$$  _|  $$  __$$\ $$  __$$\ )" << Color::reset << "\n";
+    std::cout << Color::cyan << R"( \____$$\ $$ \$$$  $$ |$$  __$$ |$$ /        $$ |    $$ | \$$\$$  / $$$$$$$ | $$ |    $$ /  $$ |$$ |  \__|)" << Color::reset << "\n";
+    std::cout << Color::cyan << R"($$\   $$ |$$ |\$  /$$ |$$ |  $$ |$$ |        $$ |$$\ $$ |  \$$$  / $$  __$$ | $$ |$$\ $$ |  $$ |$$ |      )" << Color::reset << "\n";
+    std::cout << Color::cyan << R"(\$$$$$$  |$$ | \_/ $$ |$$ |  $$ |\$$$$$$$\   \$$$$  |$$ |   \$  /  \$$$$$$$ | \$$$$  |\$$$$$$  |$$ |      )" << Color::reset << "\n";
+    std::cout << Color::cyan << R"( \______/ \__|     \__|\__|  \__| \_______|   \____/ \__|    \_/    \_______|  \____/  \______/ \__|      )" << Color::reset << "\n";
+    std::cout << "\n \n \n";
+    std::cout << Color::white << "-------------------------------" << Color::reset << "\n";
+    std::cout << Color::white << "Version " << ver_current << Color::reset << "\n";
+    std::cout << Color::white << "-------------------------------" << Color::reset << "\n\n";
+}
+
+void runUpdateCheck(bool returnToMenu = false) {
+    DotAnimation anim("Checking for updates");
+    UpdateInfo info = checkForUpdate(ver_current);
+    anim.stop();
+
+    if (info.available) {
+        std::string url = info.downloadUrl.empty() ? info.releaseUrl : info.downloadUrl;
+        std::cout << Color::yellow << "Update " << info.tagName << " available!" << Color::reset << "\n";
+        std::cout << Color::white << "Opening download page..." << Color::reset << "\n";
+        openURL(url);
+    }
+    else {
+        if (returnToMenu)
+            std::cout << Color::cyan << "Up to date. Press Enter to return to menu." << Color::reset << "\n";
+        else
+            std::cout << Color::green << "Up to date." << Color::reset << "\n";
+    }
+    if (returnToMenu) std::cin.get();
+}
+
+// ---------------------------------------------------------------------------
+// Input
+// ---------------------------------------------------------------------------
 
 #ifdef _WIN32
 #include <conio.h>
@@ -263,8 +317,8 @@ int showMenu(const std::vector<std::string>& options) {
     while (true) {
         int key = getKey();
         if (key == -3 && selected > 0)          selected--;
-        else if (key == -4 && selected < n - 1) selected++;
-        else if (key == '\r' || key == '\n')     break;
+        else if (key == -4 && selected < n - 1)      selected++;
+        else if (key == '\r' || key == '\n')          break;
         draw();
     }
 
@@ -272,6 +326,10 @@ int showMenu(const std::vector<std::string>& options) {
     std::cout << "\033[?25h";
     return selected;
 }
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
 
 enum MenuOption { ACTIVATE = 0, CHECK_UPDATES, EXIT };
 
@@ -287,45 +345,23 @@ int main() {
     }
 #endif
 
-    std::cout << "\n \n \n";
-    std::cout << Color::cyan << R"( $$$$$$\  $$\      $$\  $$$$$$\              $$\     $$\                      $$\                         )" << Color::reset << "\n";
-    std::cout << Color::cyan << R"($$  __$$\ $$$\    $$$ |$$  __$$\             $$ |    \__|                     $$ |                        )" << Color::reset << "\n";
-    std::cout << Color::cyan << R"($$ /  \__|$$$$\  $$$$ |$$ /  $$ | $$$$$$$\ $$$$$$\   $$\ $$\    $$\ $$$$$$\ $$$$$$\    $$$$$$\   $$$$$$\ )" << Color::reset << "\n";
-    std::cout << Color::cyan << R"(\$$$$$$\  $$\$$\$$ $$ |$$$$$$$$ |$$  _____|\_$$  _|  $$ |\$$\  $$  |\____$$\\_$$  _|  $$  __$$\ $$  __$$\ )" << Color::reset << "\n";
-    std::cout << Color::cyan << R"( \____$$\ $$ \$$$  $$ |$$  __$$ |$$ /        $$ |    $$ | \$$\$$  / $$$$$$$ | $$ |    $$ /  $$ |$$ |  \__|)" << Color::reset << "\n";
-    std::cout << Color::cyan << R"($$\   $$ |$$ |\$  /$$ |$$ |  $$ |$$ |        $$ |$$\ $$ |  \$$$  / $$  __$$ | $$ |$$\ $$ |  $$ |$$ |      )" << Color::reset << "\n";
-    std::cout << Color::cyan << R"(\$$$$$$  |$$ | \_/ $$ |$$ |  $$ |\$$$$$$$\   \$$$$  |$$ |   \$  /  \$$$$$$$ | \$$$$  |\$$$$$$  |$$ |      )" << Color::reset << "\n";
-    std::cout << Color::cyan << R"( \______/ \__|     \__|\__|  \__| \_______|   \____/ \__|    \_/    \_______|  \____/  \______/ \__|      )" << Color::reset << "\n";
-    std::cout << "\n \n \n";
-    std::cout << Color::white << "-------------------------------" << Color::reset << "\n";
-    std::cout << Color::white << "Version " << ver_current << Color::reset << "\n";
-    std::cout << Color::white << "-------------------------------" << Color::reset << "\n\n";
+    printBanner();
 
-    if (updatechecker == 1) {
-        DotAnimation anim("Checking for updates");
-        UpdateInfo info = checkForUpdate(ver_current);
-        anim.stop();
-
-        if (info.available) {
-            std::string url = info.downloadUrl.empty() ? info.releaseUrl : info.downloadUrl;
-            std::cout << Color::yellow << "Update " << info.tagName << " available!" << Color::reset << "\n";
-            std::cout << Color::white << "Opening download page..." << Color::reset << "\n";
-            openURL(url);
-        }
-        else {
-            std::cout << Color::green << "Up to date." << Color::reset << "\n";
-        }
-    }
-    else if (updatechecker == 3) {
+    switch (updatePolicy) {
+    case UpdatePolicy::Enabled:
+        runUpdateCheck();
+        break;
+    case UpdatePolicy::DisabledByPolicy:
         std::cout << Color::white << "Updates disabled by policy, skipping check." << Color::reset << "\n";
-    }
-    else {
+        break;
+    case UpdatePolicy::Disabled:
         std::cout << Color::white << "Update checker disabled, skipping check." << Color::reset << "\n";
+        break;
     }
 
     std::cout << Color::green << "SMActivator ready." << Color::reset << "\n";
 
-    std::vector<std::string> options = { "Activate Package", "Update check", "Exit" };
+    const std::vector<std::string> options = { "Activate Package", "Update check", "Exit" };
 
     while (true) {
         std::cout << "\nSelect an option:\n\n";
@@ -339,24 +375,9 @@ int main() {
             std::cin.get();
             break;
 
-        case CHECK_UPDATES: {
-            DotAnimation anim("Checking for updates");
-            UpdateInfo info = checkForUpdate(ver_current);
-            anim.stop();
-
-            if (info.available) {
-                std::string url = info.downloadUrl.empty() ? info.releaseUrl : info.downloadUrl;
-                std::cout << Color::yellow << "Update " << info.tagName << " available!" << Color::reset << "\n";
-                std::cout << Color::white << "Opening download page..." << Color::reset << "\n";
-                openURL(url);
-                std::cin.get();
-            }
-            else {
-                std::cout << Color::cyan << "Up to date. Press Enter to return to menu." << Color::reset << "\n";
-                std::cin.get();
-            }
+        case CHECK_UPDATES:
+            runUpdateCheck(true);
             break;
-        }
 
         case EXIT:
             std::cout << Color::red << "Terminating session. Goodbye." << Color::reset << "\n";
