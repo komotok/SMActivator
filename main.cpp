@@ -17,10 +17,16 @@ struct UpdateInfo {
 };
 
 static std::string jsonField(const std::string& json, const std::string& key) {
-    std::string needle = "\"" + key + "\":\"";
+    std::string needle = "\"" + key + "\"";
     size_t pos = json.find(needle);
     if (pos == std::string::npos) return {};
     pos += needle.size();
+
+    while (pos < json.size() && (json[pos] == ':' || json[pos] == ' ')) ++pos;
+
+    if (pos >= json.size() || json[pos] != '"') return {};
+    ++pos;
+
     size_t end = json.find('"', pos);
     return end == std::string::npos ? std::string{} : json.substr(pos, end - pos);
 }
@@ -91,15 +97,7 @@ UpdateInfo checkForUpdate(double currentVersion) {
     UpdateInfo info;
     info.tagName = jsonField(response, "tag_name");
     info.releaseUrl = jsonUnescape(jsonField(response, "html_url"));
-
-    std::string assetKey = "\"browser_download_url\":\"";
-    size_t ap = response.find(assetKey);
-    if (ap != std::string::npos) {
-        ap += assetKey.size();
-        size_t ae = response.find('"', ap);
-        if (ae != std::string::npos)
-            info.downloadUrl = jsonUnescape(response.substr(ap, ae - ap));
-    }
+    info.downloadUrl = jsonUnescape(jsonField(response, "browser_download_url"));
 
     std::string tag = info.tagName;
     if (!tag.empty() && tag[0] == 'v') tag = tag.substr(1);
@@ -203,7 +201,7 @@ void progressBar(int total, const std::string& label = "", const char* labelColo
     std::cout << "\n";
 }
 
-double ver_current = 0.11;
+double ver_current = 0.13;
 int    updatechecker = 1;
 
 #ifdef _WIN32
@@ -279,6 +277,16 @@ enum MenuOption { ACTIVATE = 0, CHECK_UPDATES, EXIT };
 
 int main() {
     enableANSI();
+
+#ifdef _WIN32
+    HANDLE hMutex = CreateMutexW(NULL, TRUE, L"Global\\SMActivatorInstance");
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        std::cout << Color::red << "Instance already running. Terminating session." << Color::reset << "\n";
+        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+        return 1;
+    }
+#endif
+
     std::cout << "\n \n \n";
     std::cout << Color::cyan << R"( $$$$$$\  $$\      $$\  $$$$$$\              $$\     $$\                      $$\                         )" << Color::reset << "\n";
     std::cout << Color::cyan << R"($$  __$$\ $$$\    $$$ |$$  __$$\             $$ |    \__|                     $$ |                        )" << Color::reset << "\n";
