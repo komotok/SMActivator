@@ -203,7 +203,7 @@ void progressBar(int total, const std::string& label = "", const char* labelColo
     std::cout << "\n";
 }
 
-double ver_current = 0.1;
+double ver_current = 0.11;
 int    updatechecker = 1;
 
 #ifdef _WIN32
@@ -279,8 +279,17 @@ enum MenuOption { ACTIVATE = 0, CHECK_UPDATES, EXIT };
 
 int main() {
     enableANSI();
-
-    std::cout << Color::cyan << "SMActivator" << Color::reset << "\n";
+    std::cout << "\n \n \n";
+    std::cout << Color::cyan << R"( $$$$$$\  $$\      $$\  $$$$$$\              $$\     $$\                      $$\                         )" << Color::reset << "\n";
+    std::cout << Color::cyan << R"($$  __$$\ $$$\    $$$ |$$  __$$\             $$ |    \__|                     $$ |                        )" << Color::reset << "\n";
+    std::cout << Color::cyan << R"($$ /  \__|$$$$\  $$$$ |$$ /  $$ | $$$$$$$\ $$$$$$\   $$\ $$\    $$\ $$$$$$\ $$$$$$\    $$$$$$\   $$$$$$\ )" << Color::reset << "\n";
+    std::cout << Color::cyan << R"(\$$$$$$\  $$\$$\$$ $$ |$$$$$$$$ |$$  _____|\_$$  _|  $$ |\$$\  $$  |\____$$\\_$$  _|  $$  __$$\ $$  __$$\ )" << Color::reset << "\n";
+    std::cout << Color::cyan << R"( \____$$\ $$ \$$$  $$ |$$  __$$ |$$ /        $$ |    $$ | \$$\$$  / $$$$$$$ | $$ |    $$ /  $$ |$$ |  \__|)" << Color::reset << "\n";
+    std::cout << Color::cyan << R"($$\   $$ |$$ |\$  /$$ |$$ |  $$ |$$ |        $$ |$$\ $$ |  \$$$  / $$  __$$ | $$ |$$\ $$ |  $$ |$$ |      )" << Color::reset << "\n";
+    std::cout << Color::cyan << R"(\$$$$$$  |$$ | \_/ $$ |$$ |  $$ |\$$$$$$$\   \$$$$  |$$ |   \$  /  \$$$$$$$ | \$$$$  |\$$$$$$  |$$ |      )" << Color::reset << "\n";
+    std::cout << Color::cyan << R"( \______/ \__|     \__|\__|  \__| \_______|   \____/ \__|    \_/    \_______|  \____/  \______/ \__|      )" << Color::reset << "\n";
+    std::cout << "\n \n \n";
+    std::cout << Color::white << "-------------------------------" << Color::reset << "\n";
     std::cout << Color::white << "Version " << ver_current << Color::reset << "\n";
     std::cout << Color::white << "-------------------------------" << Color::reset << "\n\n";
 
